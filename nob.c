@@ -94,7 +94,7 @@ defer:
   return result;
 }
 
-const char *input_paths[] = {"src/main.c"};
+const char *input_paths[] = {"src/main.c", "src/entity.c", "src/data.c"};
 
 int main(int argc, char **argv) {
   NOB_GO_REBUILD_URSELF(argc, argv);
