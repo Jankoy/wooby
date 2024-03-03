@@ -6,6 +6,7 @@ int main(void) {
   SetTargetFPS(60);
 
   spawn_entity(PLAYER, (Vector2){200.0f, 150.0f}, 0.25f);
+  spawn_entity(ENEMY, (Vector2){400.0f, 150.0f}, 0.25f);
 
   while (!WindowShouldClose()) {
     update_entities();
