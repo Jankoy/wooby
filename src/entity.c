@@ -4,8 +4,16 @@
 #include <raymath.h>
 
 static entity_data_t entity_data_lookup_table[] = {
-    [PLAYER] = {.texture_path = "resources/player.png"},
-    [ENEMY] = {.texture_path = "resources/enemy.png"},
+    [PLAYER] =
+        {
+            .texture_path = "resources/assets/player.png",
+            .behavior_path = "resources/scripts/player.lua",
+        },
+    [ENEMY] =
+        {
+            .texture_path = "resources/assets/enemy.png",
+            .behavior_path = "resources/scripts/enemy.lua",
+        },
 };
 
 static struct {
