@@ -9,7 +9,7 @@ typedef enum {
   ENEMY,
 } entity_type_t;
 
-typedef u16 entity_id_t;
+typedef size_t entity_id_t;
 
 typedef struct {
   entity_id_t id;

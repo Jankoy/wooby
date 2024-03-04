@@ -1,6 +1,7 @@
 #include "entity.h"
 #include "data.h"
 #include "nob.h"
+#include <raymath.h>
 
 static entity_data_t entity_data_lookup_table[] = {
     [PLAYER] = {.texture_path = "resources/player.png"},
@@ -67,7 +68,24 @@ void free_entity(entity_id_t id) {
   entities.count -= 1;
 }
 
-void update_entities() {}
+void update_entities() {
+  for (entity_t *e = entities.items;
+       (size_t)(e - entities.items) < entities.count; ++e) {
+    switch (e->type) {
+    case PLAYER: {
+      const Vector2 delta =
+          Vector2Normalize((Vector2){IsKeyDown(KEY_RIGHT) - IsKeyDown(KEY_LEFT),
+                                     IsKeyDown(KEY_DOWN) - IsKeyDown(KEY_UP)});
+
+      e->position =
+          Vector2Add(e->position, Vector2Scale(delta, 100.0f * GetFrameTime()));
+    } break;
+    case ENEMY: {
+      e->position.x -= 1.0f;
+    } break;
+    }
+  }
+}
 
 void draw_entities() {
   for (entity_t *e = entities.items;

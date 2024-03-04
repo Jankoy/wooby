@@ -2,6 +2,7 @@
 #include <raylib.h>
 
 int main(void) {
+  SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT);
   InitWindow(800, 600, "Test");
   SetTargetFPS(60);
 

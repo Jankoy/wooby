@@ -7,7 +7,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2017-2023 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2017-2024 Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -34,8 +34,20 @@
 // _GLFW_X11        to use the X Window System
 // _GLFW_WAYLAND    to use the Wayland API (experimental and incomplete)
 // _GLFW_COCOA      to use the Cocoa frameworks
-// _GLFW_OSMESA     to use the OSMesa API (headless and non-interactive)
-// _GLFW_MIR        experimental, not supported at this moment
+//
+// Note: GLFW's runtime platform selection is not supported at the moment
+
+//----------------------------------------------------------------------------------
+// Feature Test Macros required for this module
+//----------------------------------------------------------------------------------
+#if (defined(__linux__) || defined(PLATFORM_WEB)) && (_POSIX_C_SOURCE < 199309L)
+    #undef _POSIX_C_SOURCE
+    #define _POSIX_C_SOURCE 199309L // Required for: CLOCK_MONOTONIC if compiled with c99 without gnu ext.
+#endif
+#if (defined(__linux__) || defined(PLATFORM_WEB)) && !defined(_GNU_SOURCE)
+    #undef _GNU_SOURCE
+    #define _GNU_SOURCE // Required for: ppoll if compiled with c99 without gnu ext.
+#endif
 
 #if defined(_WIN32) || defined(__CYGWIN__)
     #define _GLFW_WIN32
@@ -56,6 +68,15 @@
 #if defined(__TINYC__)
     #define _WIN32_WINNT_WINXP      0x0501
 #endif
+
+#include "external/glfw/src/internal.h"
+
+// We do not use GLFW's "null" platform, but the absence of this function
+// causes the build to fail
+GLFWbool _glfwConnectNull(int platformID, _GLFWplatform* platform)
+{
+    return GLFW_TRUE;
+}
 
 // Common modules to all platforms
 #include "external/glfw/src/init.c"
