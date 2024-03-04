@@ -96,18 +96,32 @@ defer:
 
 const char *input_paths[] = {"src/main.c", "src/entity.c", "src/data.c"};
 
+void usage(const char *program) {
+  printf("%s [--windows | --linux] <-r> [args]", program);
+  printf("\t--windows: Tries to compile for windows with mingw");
+  printf("\t--linux: Tries to compile for linux with gcc");
+  printf("\t-r: Tries to run the executable immediately after "
+         "building, it passes everything that comes after it to the "
+         "executable as arguments");
+}
+
 int main(int argc, char **argv) {
   NOB_GO_REBUILD_URSELF(argc, argv);
 
   const char *program = nob_shift_args(&argc, &argv);
   (void)program;
-
+#ifdef _WIN32
+  build_platform_t platform = PLATFORM_WINDOWS;
+#else
   build_platform_t platform = PLATFORM_LINUX;
+#endif // _WIN32
   bool run_flag = false;
 
   while (argc > 0) {
     const char *subcmd = nob_shift_args(&argc, &argv);
-    if (strcmp(subcmd, "--windows") == 0)
+    if (strcmp(subcmd, "--linux") == 0)
+      platform = PLATFORM_LINUX;
+    else if (strcmp(subcmd, "--windows") == 0)
       platform = PLATFORM_WINDOWS;
     else if (strcmp(subcmd, "-r") == 0) {
       run_flag = true;
