@@ -170,7 +170,6 @@ int main(int argc, char **argv) {
       cmd.count = 0;
       nob_cmd_append(&cmd, compiler);
       nob_cmd_append(&cmd, "-Wall", "-Wextra", "-ggdb");
-      nob_cmd_append(&cmd, "-Wl,-E");
       nob_cmd_append(&cmd, "-Iraylib/src/");
       nob_cmd_append(&cmd, "-c", input_path);
       nob_cmd_append(&cmd, "-o", output_path);
