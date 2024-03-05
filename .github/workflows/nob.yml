@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: sudo apt install xorg-dev
     - name: Bootstrap nob
       run: cc -o nob nob.c
     - name: Build with nob for Linux
