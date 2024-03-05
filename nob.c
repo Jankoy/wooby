@@ -251,14 +251,19 @@ int main(int argc, char **argv) {
   else if (platform == PLATFORM_WINDOWS)
     platform_string = "windows";
 
+  const char *exe;
+  if (platform == PLATFORM_LINUX)
+    exe = "build/wooby";
+  else if (platform == PLATFORM_WINDOWS)
+    exe = "build/wooby.exe";
+
   Nob_Cmd cmd = {0};
-  if (nob_needs_rebuild("build/wooby", input_paths,
-                        NOB_ARRAY_LEN(input_paths))) {
+  if (nob_needs_rebuild(exe, input_paths, NOB_ARRAY_LEN(input_paths))) {
     nob_cmd_append(&cmd, compiler);
     nob_cmd_append(&cmd, "-Wall", "-Wextra", "-ggdb");
     nob_cmd_append(&cmd, "-Ideps/raylib/src/");
     nob_cmd_append(&cmd, "-Ideps/lua/src/");
-    nob_cmd_append(&cmd, "-o", "build/wooby");
+    nob_cmd_append(&cmd, "-o", exe);
     nob_da_append_many(&cmd, input_paths, NOB_ARRAY_LEN(input_paths));
     nob_cmd_append(&cmd,
                    nob_temp_sprintf("-Lbuild/raylib/%s", platform_string));
@@ -277,7 +282,7 @@ int main(int argc, char **argv) {
 
   if (run_flag) {
     cmd.count = 0;
-    nob_cmd_append(&cmd, "build/wooby");
+    nob_cmd_append(&cmd, exe);
     nob_da_append_many(&cmd, argv, argc);
     if (!nob_cmd_run_sync(cmd))
       return 1;
