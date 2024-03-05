@@ -45,7 +45,7 @@ bool build_raylib(build_platform_t platform) {
 
   for (size_t i = 0; i < NOB_ARRAY_LEN(raylib_modules); ++i) {
     const char *input_path =
-        nob_temp_sprintf("deps/raylib/src/%s.c", raylib_modules[i]);
+        nob_temp_sprintf("raylib/src/%s.c", raylib_modules[i]);
     const char *output_path =
         nob_temp_sprintf("%s/%s.o", build_dir, raylib_modules[i]);
 
@@ -55,7 +55,7 @@ bool build_raylib(build_platform_t platform) {
       cmd.count = 0;
       nob_cmd_append(&cmd, compiler);
       nob_cmd_append(&cmd, "-ggdb", "-DPLATFORM_DESKTOP", "-fPIC");
-      nob_cmd_append(&cmd, "-Ideps/raylib/src/external/glfw/include");
+      nob_cmd_append(&cmd, "-Iraylib/src/external/glfw/include");
       nob_cmd_append(&cmd, "-c", input_path);
       nob_cmd_append(&cmd, "-o", output_path);
       Nob_Proc proc = nob_cmd_run_async(cmd);
@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
       nob_cmd_append(&cmd, compiler);
       nob_cmd_append(&cmd, "-Wall", "-Wextra", "-ggdb");
       nob_cmd_append(&cmd, "-Wl,-E");
-      nob_cmd_append(&cmd, "-Ideps/raylib/src/");
+      nob_cmd_append(&cmd, "-Iraylib/src/");
       nob_cmd_append(&cmd, "-c", input_path);
       nob_cmd_append(&cmd, "-o", output_path);
       Nob_Proc proc = nob_cmd_run_async(cmd);
