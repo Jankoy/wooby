@@ -21,9 +21,11 @@ typedef struct {
   Color tint;
 } entity_t;
 
+typedef void (*entity_behavior_t)(entity_t *);
+
 typedef struct {
   const char *texture_path;
-  const char *behavior_path;
+  entity_behavior_t behavior;
 } entity_data_t;
 
 entity_id_t spawn_entity(entity_type_t type, Vector2 position, float scale);

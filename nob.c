@@ -1,13 +1,6 @@
 #define NOB_IMPLEMENTATION
 #include "src/nob.h"
 
-static char *get_file_extension(const char *fileName) {
-  char *dot = strrchr(fileName, '.');
-  if (!dot || dot == fileName)
-    return NULL;
-  return dot;
-}
-
 const char *linux_compiler = "cc";
 const char *windows_compiler = "x86_64-w64-mingw32-cc";
 
@@ -101,101 +94,6 @@ defer:
   return result;
 }
 
-bool build_lua(build_platform_t platform) {
-  size_t temp_restore = nob_temp_save();
-
-  const char *platform_string;
-  if (platform == PLATFORM_LINUX)
-    platform_string = "linux";
-  else if (platform == PLATFORM_WINDOWS)
-    platform_string = "windows";
-
-  const char *compiler;
-  if (platform == PLATFORM_LINUX)
-    compiler = linux_compiler;
-  else if (platform == PLATFORM_WINDOWS)
-    compiler = windows_compiler;
-
-  const char *build_dir = nob_temp_sprintf("build/lua/%s", platform_string);
-
-  if (!nob_mkdir_if_not_exists("build/lua"))
-    return false;
-
-  if (!nob_mkdir_if_not_exists(build_dir))
-    return false;
-
-  bool result = true;
-
-  Nob_Cmd cmd = {0};
-  Nob_File_Paths source_files = {0};
-  Nob_File_Paths object_files = {0};
-  Nob_Procs procs = {0};
-
-  {
-    Nob_File_Paths temp = {0};
-    nob_read_entire_dir("deps/lua/src/", &temp);
-    for (size_t i = 0; i < temp.count; ++i)
-      if (nob_get_file_type(nob_temp_sprintf(
-              "deps/lua/src/%s", temp.items[i])) == NOB_FILE_REGULAR)
-        if (strcmp(get_file_extension(temp.items[i]), ".c") == 0)
-          nob_da_append(&source_files, temp.items[i]);
-    nob_da_free(temp);
-  }
-
-  for (size_t i = 0; i < source_files.count; ++i) {
-    const char *input_path =
-        nob_temp_sprintf("deps/lua/src/%s", source_files.items[i]);
-    get_file_extension(source_files.items[i])[1] = 'o';
-    const char *output_path =
-        nob_temp_sprintf("%s/%s", build_dir, source_files.items[i]);
-    get_file_extension(source_files.items[i])[1] = 'c';
-
-    nob_da_append(&object_files, output_path);
-
-    if (nob_needs_rebuild(output_path, &input_path, 1)) {
-      cmd.count = 0;
-      nob_cmd_append(&cmd, compiler);
-      nob_cmd_append(&cmd, "-ggdb", "-fPIC");
-      nob_cmd_append(&cmd, "-Ideps/lua/src/");
-      nob_cmd_append(&cmd, "-c", input_path);
-      nob_cmd_append(&cmd, "-o", output_path);
-      Nob_Proc proc = nob_cmd_run_async(cmd);
-      nob_da_append(&procs, proc);
-    }
-  }
-  cmd.count = 0;
-
-  if (!nob_procs_wait(procs))
-    nob_return_defer(false);
-
-  const char *liblua_path = nob_temp_sprintf("%s/liblua.a", build_dir);
-
-  if (nob_needs_rebuild(liblua_path, object_files.items, object_files.count)) {
-    const char *linker;
-    if (platform == PLATFORM_LINUX)
-      linker = linux_linker;
-    else if (platform == PLATFORM_WINDOWS)
-      linker = windows_linker;
-    nob_cmd_append(&cmd, linker, "-crs", liblua_path);
-    for (size_t i = 0; i < object_files.count; ++i) {
-      const char *input_path = object_files.items[i];
-      nob_cmd_append(&cmd, input_path);
-    }
-    if (!nob_cmd_run_sync(cmd))
-      nob_return_defer(false);
-  }
-
-defer:
-  nob_temp_rewind(temp_restore);
-  nob_da_free(procs);
-  nob_da_free(object_files);
-  nob_da_free(source_files);
-  nob_cmd_free(cmd);
-  return result;
-}
-
-const char *input_paths[] = {"src/main.c", "src/entity.c", "src/data.c"};
-
 void usage(const char *program) {
   printf("%s [--windows | --linux] <-r> [args]", program);
   printf("\t--windows: Tries to compile for windows with mingw");
@@ -210,6 +108,9 @@ int main(int argc, char **argv) {
 
   const char *program = nob_shift_args(&argc, &argv);
   (void)program;
+
+  const char *inputs[] = {"main", "entity", "data"};
+
 #ifdef _WIN32
   build_platform_t platform = PLATFORM_WINDOWS;
 #else
@@ -236,9 +137,6 @@ int main(int argc, char **argv) {
   if (!build_raylib(platform))
     return 1;
 
-  if (!build_lua(platform))
-    return 1;
-
   const char *compiler;
   if (platform == PLATFORM_LINUX)
     compiler = linux_compiler;
@@ -258,18 +156,39 @@ int main(int argc, char **argv) {
     exe = "build/wooby.exe";
 
   Nob_Cmd cmd = {0};
-  if (nob_needs_rebuild(exe, input_paths, NOB_ARRAY_LEN(input_paths))) {
+  Nob_File_Paths input_files = {0};
+  Nob_File_Paths object_files = {0};
+  Nob_Procs procs = {0};
+
+  for (size_t i = 0; i < NOB_ARRAY_LEN(inputs); ++i) {
+    const char *input_path = nob_temp_sprintf("src/%s.c", inputs[i]);
+    nob_da_append(&input_files, input_path);
+    const char *output_path = nob_temp_sprintf("build/%s.o", inputs[i]);
+    nob_da_append(&object_files, output_path);
+
+    if (nob_needs_rebuild(output_path, &input_path, 1)) {
+      cmd.count = 0;
+      nob_cmd_append(&cmd, compiler);
+      nob_cmd_append(&cmd, "-Wall", "-Wextra", "-ggdb");
+      nob_cmd_append(&cmd, "-Wl,-E");
+      nob_cmd_append(&cmd, "-Ideps/raylib/src/");
+      nob_cmd_append(&cmd, "-c", input_path);
+      nob_cmd_append(&cmd, "-o", output_path);
+      Nob_Proc proc = nob_cmd_run_async(cmd);
+      nob_da_append(&procs, proc);
+    }
+  }
+
+  if (!nob_procs_wait(procs))
+    return 1;
+
+  cmd.count = 0;
+  if (nob_needs_rebuild(exe, object_files.items, object_files.count)) {
     nob_cmd_append(&cmd, compiler);
     nob_cmd_append(&cmd, "-Wall", "-Wextra", "-ggdb");
-    nob_cmd_append(&cmd, "-Ideps/raylib/src/");
-    nob_cmd_append(&cmd, "-Ideps/lua/src/");
     nob_cmd_append(&cmd, "-o", exe);
-    nob_da_append_many(&cmd, input_paths, NOB_ARRAY_LEN(input_paths));
-    nob_cmd_append(&cmd,
-                   nob_temp_sprintf("-Lbuild/raylib/%s", platform_string));
-    nob_cmd_append(&cmd, nob_temp_sprintf("-Lbuild/lua/%s", platform_string));
+    nob_da_append_many(&cmd, object_files.items, object_files.count);
     nob_cmd_append(&cmd, "-lraylib", "-lm");
-    nob_cmd_append(&cmd, "-llua");
     if (platform == PLATFORM_WINDOWS) {
       nob_cmd_append(&cmd, "-lwinmm", "-lgdi32");
       nob_cmd_append(&cmd, "-static");
