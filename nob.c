@@ -171,6 +171,8 @@ int main(int argc, char **argv) {
       nob_cmd_append(&cmd, compiler);
       nob_cmd_append(&cmd, "-Wall", "-Wextra", "-ggdb");
       nob_cmd_append(&cmd, "-Iraylib/src/");
+      nob_cmd_append(&cmd,
+                     nob_temp_sprintf("-Lbuild/raylib/%s/", platform_string));
       nob_cmd_append(&cmd, "-c", input_path);
       nob_cmd_append(&cmd, "-o", output_path);
       Nob_Proc proc = nob_cmd_run_async(cmd);

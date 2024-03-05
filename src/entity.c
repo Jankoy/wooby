@@ -6,12 +6,12 @@
 static entity_data_t entity_data_lookup_table[] = {
     [PLAYER] =
         {
-            .texture_path = "resources/assets/player.png",
+            .texture_path = "resources/player.png",
             .behavior = NULL,
         },
     [ENEMY] =
         {
-            .texture_path = "resources/assets/enemy.png",
+            .texture_path = "resources/enemy.png",
             .behavior = NULL,
         },
 };
