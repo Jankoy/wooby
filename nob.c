@@ -171,8 +171,6 @@ int main(int argc, char **argv) {
       nob_cmd_append(&cmd, compiler);
       nob_cmd_append(&cmd, "-Wall", "-Wextra", "-ggdb");
       nob_cmd_append(&cmd, "-Iraylib/src/");
-      nob_cmd_append(&cmd,
-                     nob_temp_sprintf("-Lbuild/raylib/%s/", platform_string));
       nob_cmd_append(&cmd, "-c", input_path);
       nob_cmd_append(&cmd, "-o", output_path);
       Nob_Proc proc = nob_cmd_run_async(cmd);
@@ -189,6 +187,8 @@ int main(int argc, char **argv) {
     nob_cmd_append(&cmd, "-Wall", "-Wextra", "-ggdb");
     nob_cmd_append(&cmd, "-o", exe);
     nob_da_append_many(&cmd, object_files.items, object_files.count);
+    nob_cmd_append(&cmd,
+                   nob_temp_sprintf("-Lbuild/raylib/%s/", platform_string));
     nob_cmd_append(&cmd, "-lraylib", "-lm");
     if (platform == PLATFORM_WINDOWS) {
       nob_cmd_append(&cmd, "-lwinmm", "-lgdi32");
