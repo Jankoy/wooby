@@ -109,7 +109,9 @@ int main(int argc, char **argv) {
   const char *program = nob_shift_args(&argc, &argv);
   (void)program;
 
-  const char *inputs[] = {"main", "entity", "data"};
+  const char *inputs[] = {
+      "main", "entity", "data", "behaviors/player", "behaviors/enemy",
+  };
 
 #ifdef _WIN32
   build_platform_t platform = PLATFORM_WINDOWS;
@@ -149,6 +151,13 @@ int main(int argc, char **argv) {
   else if (platform == PLATFORM_WINDOWS)
     platform_string = "windows";
 
+  const char *build_path = nob_temp_sprintf("build/%s", platform_string);
+  if (!nob_mkdir_if_not_exists(build_path))
+    return 1;
+
+  if (!nob_mkdir_if_not_exists(nob_temp_sprintf("%s/behaviors", build_path)))
+    return 1;
+
   const char *exe;
   if (platform == PLATFORM_LINUX)
     exe = "build/wooby";
@@ -163,7 +172,8 @@ int main(int argc, char **argv) {
   for (size_t i = 0; i < NOB_ARRAY_LEN(inputs); ++i) {
     const char *input_path = nob_temp_sprintf("src/%s.c", inputs[i]);
     nob_da_append(&input_files, input_path);
-    const char *output_path = nob_temp_sprintf("build/%s.o", inputs[i]);
+    const char *output_path =
+        nob_temp_sprintf("build/%s/%s.o", platform_string, inputs[i]);
     nob_da_append(&object_files, output_path);
 
     if (nob_needs_rebuild(output_path, &input_path, 1)) {
