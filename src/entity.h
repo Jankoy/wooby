@@ -7,12 +7,8 @@
 
 Vector2 vector2_from_rectangle(Rectangle r);
 
-typedef enum {
-  PLAYER,
-  ENEMY,
-} entity_type_t;
-
 typedef size_t entity_id_t;
+typedef enum { PLAYER, ENEMY } entity_type_t;
 
 typedef struct {
   entity_id_t id;
@@ -24,12 +20,14 @@ typedef struct {
 } entity_t;
 
 typedef void (*entity_behavior_t)(entity_t *);
+typedef void (*entity_collision_t)(entity_t *, Rectangle);
 
 typedef struct {
   const char *texture_path;
   const Rectangle texture_rectangle;
   const Vector2 size;
   const entity_behavior_t behavior;
+  const entity_collision_t collision;
 } entity_data_t;
 
 size_t find_entity_from_id(entity_id_t id);

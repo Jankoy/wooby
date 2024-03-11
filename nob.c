@@ -94,7 +94,146 @@ defer:
   return result;
 }
 
-void usage(const char *program) {
+bool read_dir_recursively(const char *parent, Nob_File_Paths *children) {
+  bool result = true;
+  Nob_File_Paths temp = {0};
+
+  if (nob_get_file_type(parent) != NOB_FILE_DIRECTORY)
+    nob_return_defer(result);
+
+  if (!nob_read_entire_dir(parent, &temp))
+    nob_return_defer(false);
+
+  for (size_t i = 0; i < temp.count; ++i) {
+    const char *full_path = nob_temp_sprintf("%s/%s", parent, temp.items[i]);
+
+    Nob_File_Type type = nob_get_file_type(full_path);
+    if (type < 0)
+      nob_return_defer(false);
+
+    switch (type) {
+    case NOB_FILE_DIRECTORY: {
+      if (strcmp(temp.items[i], ".") == 0)
+        continue;
+      if (strcmp(temp.items[i], "..") == 0)
+        continue;
+
+      if (!read_dir_recursively(full_path, children))
+        nob_return_defer(false);
+    } break;
+
+    case NOB_FILE_REGULAR: {
+      nob_da_append(children, full_path);
+    } break;
+
+    case NOB_FILE_SYMLINK: {
+    } break;
+
+    case NOB_FILE_OTHER: {
+      nob_log(NOB_ERROR, "Unsupported type of file %s", full_path);
+      nob_return_defer(false);
+    } break;
+
+    default:
+      NOB_ASSERT(0 && "unreachable");
+    }
+  }
+
+defer:
+  nob_da_free(temp);
+  return result;
+}
+
+typedef struct {
+  const char *file_path;
+  size_t offset;
+  size_t size;
+} Resource;
+
+typedef struct {
+  Resource *items;
+  size_t count;
+  size_t capacity;
+} Resources;
+
+bool bundle_resources() {
+  bool result = true;
+
+  Nob_File_Paths resource_files = {0};
+
+  if (!read_dir_recursively("resources", &resource_files))
+    nob_return_defer(false);
+
+  Resources resources = {0};
+  Nob_String_Builder bundle = {0};
+  Nob_String_Builder content = {0};
+  FILE *out = NULL;
+
+  for (size_t i = 0; i < resource_files.count; ++i) {
+    content.count = 0;
+    if (!nob_read_entire_file(resource_files.items[i], &content))
+      nob_return_defer(false);
+    nob_da_append(&resources, ((Resource){.file_path = resource_files.items[i],
+                                          .offset = bundle.count,
+                                          .size = content.count}));
+    nob_da_append_many(&bundle, content.items, content.count);
+    nob_da_append(&bundle, 0);
+  }
+
+  out = fopen("src/bundle.h", "w");
+
+  fprintf(out, "#ifndef BUNDLE_H_\n");
+  fprintf(out, "#define BUNDLE_H_\n");
+  fprintf(out, "#include <stddef.h>\n");
+  fprintf(out, "typedef struct {\n");
+  fprintf(out, "  const char *file_path;\n");
+  fprintf(out, "  size_t offset;\n");
+  fprintf(out, "  size_t size;\n");
+  fprintf(out, "} Resource;\n");
+  fprintf(out, "const Resource resources[] = {\n");
+  for (size_t i = 0; i < resources.count; ++i) {
+    Resource res = resources.items[i];
+    fprintf(
+        out,
+        "  (Resource){ .file_path = \"%s\", .offset = %zu, .size = %zu },\n",
+        res.file_path, res.offset, res.size);
+  }
+  fprintf(out, "};\n");
+  fprintf(out, "const size_t resources_count = %zu;\n", resources.count);
+  fprintf(out, "const unsigned char bundle[] = {\n");
+  const size_t row_size = 20;
+  for (size_t row = 0; row < bundle.count / row_size; ++row) {
+    fprintf(out, "  ");
+    for (size_t col = 0; col < row_size; ++col) {
+      size_t i = row * row_size + col;
+      fprintf(out, "0x%02X, ", (unsigned char)bundle.items[i]);
+    }
+    fprintf(out, "\n");
+  }
+  size_t remainder = bundle.count % row_size;
+  if (remainder > 0) {
+    fprintf(out, "  ");
+    for (size_t col = 0; col < remainder; ++col) {
+      size_t i = bundle.count / row_size * row_size + col;
+      fprintf(out, "0x%02X, ", (unsigned char)bundle.items[i]);
+    }
+    fprintf(out, "\n");
+  }
+  fprintf(out, "};\n");
+  fprintf(out, "#endif // BUNDLE_H_\n");
+
+defer:
+  if (out)
+    fclose(out);
+
+  free(content.items);
+  free(bundle.items);
+  free(resources.items);
+
+  return result;
+}
+
+static void usage(const char *program) {
   printf("%s [--windows | --linux] <-r> [args]", program);
   printf("\t--windows: Tries to compile for windows with mingw");
   printf("\t--linux: Tries to compile for linux with gcc");
@@ -103,15 +242,23 @@ void usage(const char *program) {
          "executable as arguments");
 }
 
+static char *get_file_extension(const char *fileName) {
+  char *dot = strrchr(fileName, '.');
+  if (!dot || dot == fileName)
+    return NULL;
+  return dot;
+}
+
+static void strip_first_dir(Nob_File_Paths *paths) {
+  for (size_t i = 0; i < paths->count; ++i)
+    paths->items[i] = strchr(paths->items[i], '/') + 1;
+}
+
 int main(int argc, char **argv) {
   NOB_GO_REBUILD_URSELF(argc, argv);
 
   const char *program = nob_shift_args(&argc, &argv);
   (void)program;
-
-  const char *inputs[] = {
-      "main", "entity", "data", "behaviors/player", "behaviors/enemy",
-  };
 
 #ifdef _WIN32
   build_platform_t platform = PLATFORM_WINDOWS;
@@ -168,12 +315,26 @@ int main(int argc, char **argv) {
   Nob_File_Paths input_files = {0};
   Nob_File_Paths object_files = {0};
   Nob_Procs procs = {0};
+  Nob_File_Paths inputs = {0};
 
-  for (size_t i = 0; i < NOB_ARRAY_LEN(inputs); ++i) {
-    const char *input_path = nob_temp_sprintf("src/%s.c", inputs[i]);
-    nob_da_append(&input_files, input_path);
+  if (!read_dir_recursively("src", &inputs))
+    return 1;
+
+  strip_first_dir(&inputs);
+
+  if (!bundle_resources())
+    return 1;
+
+  for (size_t i = 0; i < inputs.count; ++i) {
+    if (strcmp(get_file_extension(inputs.items[i]), ".c") != 0)
+      continue;
+
+    const char *input_path = nob_temp_sprintf("src/%s", inputs.items[i]);
+    nob_da_append(&input_files, nob_temp_strdup(input_path));
+    char *temp_path = nob_temp_strdup(inputs.items[i]);
+    get_file_extension(temp_path)[1] = 'o';
     const char *output_path =
-        nob_temp_sprintf("build/%s/%s.o", platform_string, inputs[i]);
+        nob_temp_sprintf("build/%s/%s", platform_string, temp_path);
     nob_da_append(&object_files, output_path);
 
     if (nob_needs_rebuild(output_path, &input_path, 1)) {
@@ -189,6 +350,11 @@ int main(int argc, char **argv) {
   }
 
   if (!nob_procs_wait(procs))
+    return 1;
+
+  cmd.count = 0;
+  nob_cmd_append(&cmd, "rm", "src/bundle.h");
+  if (!nob_cmd_run_sync(cmd))
     return 1;
 
   cmd.count = 0;

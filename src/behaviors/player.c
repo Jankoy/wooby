@@ -1,13 +1,12 @@
 #include "player.h"
 #include <raymath.h>
 
-void player_collision(entity_t *e, entity_type_t type,
-                      Rectangle collision_rectangle) {
+void player_collision(entity_t *e, Rectangle collision_rectangle) {
   const float area = e->rectangle.width * e->rectangle.height;
   const float collision_area =
       collision_rectangle.width * collision_rectangle.height;
 
-  if (collision_area / area >= 0.14f && type == ENEMY)
+  if (collision_area / area >= 0.14f && e->type == ENEMY)
     stop_updating_entities();
 }
 

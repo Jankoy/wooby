@@ -15,6 +15,7 @@ static entity_data_t entity_data_lookup_table[] = {
             .texture_rectangle = {0.0f, 0.0f, 256.0f, 256.0f},
             .size = {64.0f, 64.0f},
             .behavior = player_behavior,
+            .collision = player_collision,
         },
     [ENEMY] =
         {
@@ -22,6 +23,7 @@ static entity_data_t entity_data_lookup_table[] = {
             .texture_rectangle = {0.0f, 0.0f, 256.0f, 256.0f},
             .size = {64.0f, 64.0f},
             .behavior = enemy_behavior,
+            .collision = NULL,
         },
 };
 
@@ -62,13 +64,13 @@ entity_id_t spawn_entity(entity_type_t type, Vector2 position) {
 
   if (!entity_resource_cache[type].texture_loaded) {
     size_t texture_size;
-    void *texture_data = load_resource(e_data.texture_path, &texture_size);
+    void *texture_data = load_resource_data(e_data.texture_path, &texture_size);
     if (!texture_data)
       exit(1);
     Image image = LoadImageFromMemory(GetFileExtension(e_data.texture_path),
                                       texture_data, (int)texture_size);
     Texture texture = LoadTextureFromImage(image);
-    free_resource(texture_data);
+    free_resource_data(texture_data);
     entity_resource_cache[type].texture_loaded = true;
     entity_resource_cache[type].texture = texture;
   }

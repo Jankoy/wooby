@@ -16,5 +16,5 @@ void enemy_behavior(entity_t *e) {
       (Rectangle){pos.x, pos.y, e->rectangle.width, e->rectangle.height};
 
   if (CheckCollisionRecs(e->rectangle, p->rectangle))
-    player_collision(p, e->type, GetCollisionRec(e->rectangle, p->rectangle));
+    player_collision(e, GetCollisionRec(e->rectangle, p->rectangle));
 }

@@ -5,7 +5,7 @@
 
 int main(void) {
   SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT);
-  InitWindow(800, 600, "Test");
+  InitWindow(800, 600, "Wooby");
   SetTargetFPS(60);
 
   entity_id_t e1 = spawn_entity(PLAYER, (Vector2){200.0f, 150.0f});
