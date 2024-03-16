@@ -3,6 +3,6 @@
 
 #include "../entity.h"
 
-void enemy_behavior(entity_t *e);
+void enemy_update(entity_t *e);
 
 #endif // ENEMY_H_

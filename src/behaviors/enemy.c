@@ -1,20 +1,21 @@
 #include "enemy.h"
 #include <raymath.h>
 
-#include "player.h"
-
 static float speed = 80.0f;
+static float max_velocity = 5.5f;
+static float friction = 0.475f;
 
-void enemy_behavior(entity_t *e) {
+void enemy_update(entity_t *e) {
   entity_t *p = get_entity(find_entity_from_type(PLAYER));
   const Vector2 delta =
-      Vector2Normalize(Vector2Subtract(vector2_from_rectangle(p->rectangle),
-                                       vector2_from_rectangle(e->rectangle)));
-  const Vector2 pos = Vector2Add(vector2_from_rectangle(e->rectangle),
-                                 Vector2Scale(delta, speed * GetFrameTime()));
-  e->rectangle =
-      (Rectangle){pos.x, pos.y, e->rectangle.width, e->rectangle.height};
-
-  if (CheckCollisionRecs(e->rectangle, p->rectangle))
-    player_collision(e, GetCollisionRec(e->rectangle, p->rectangle));
+      Vector2Normalize(Vector2Subtract(p->position, e->position));
+  e->velocity =
+      Vector2Add(e->velocity, Vector2Scale(delta, speed * GetFrameTime()));
+  e->velocity =
+      Vector2Clamp(e->velocity, (Vector2){-max_velocity, -max_velocity},
+                   (Vector2){max_velocity, max_velocity});
+  if (!Vector2Equals(e->velocity, Vector2Zero())) {
+    move_and_collide(e);
+    e->velocity = Vector2Scale(e->velocity, 1.0f - friction);
+  }
 }
