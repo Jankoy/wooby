@@ -9,13 +9,19 @@ const char *windows_linker = "x86_64-w64-mingw32-ar";
 
 typedef enum { PLATFORM_LINUX, PLATFORM_WINDOWS } build_platform_t;
 
-bool build_raylib(build_platform_t platform) {
+bool build_raylib(build_platform_t platform, bool release) {
   static const char *raylib_modules[] = {
       "rcore",   "raudio", "rglfw",     "rmodels",
       "rshapes", "rtext",  "rtextures", "utils",
   };
 
   size_t temp_restore = nob_temp_save();
+
+  const char *release_string;
+  if (release)
+    release_string = "release";
+  else
+    release_string = "debug";
 
   const char *platform_string;
   if (platform == PLATFORM_LINUX)
@@ -29,10 +35,17 @@ bool build_raylib(build_platform_t platform) {
   else if (platform == PLATFORM_WINDOWS)
     compiler = windows_compiler;
 
-  const char *build_dir = nob_temp_sprintf("build/raylib/%s", platform_string);
-
   if (!nob_mkdir_if_not_exists("build/raylib"))
     return false;
+
+  const char *platform_build_dir =
+      nob_temp_sprintf("build/raylib/%s", platform_string);
+
+  if (!nob_mkdir_if_not_exists(platform_build_dir))
+    return false;
+
+  const char *build_dir =
+      nob_temp_sprintf("%s/%s", platform_build_dir, release_string);
 
   if (!nob_mkdir_if_not_exists(build_dir))
     return false;
@@ -54,7 +67,11 @@ bool build_raylib(build_platform_t platform) {
     if (nob_needs_rebuild(output_path, &input_path, 1)) {
       cmd.count = 0;
       nob_cmd_append(&cmd, compiler);
-      nob_cmd_append(&cmd, "-ggdb", "-DPLATFORM_DESKTOP", "-fPIC");
+      if (release)
+        nob_cmd_append(&cmd, "-O2", "-s");
+      else
+        nob_cmd_append(&cmd, "-O0", "-ggdb");
+      nob_cmd_append(&cmd, "-DPLATFORM_DESKTOP", "-fPIC");
       nob_cmd_append(&cmd, "-Iraylib/src/external/glfw/include");
       nob_cmd_append(&cmd, "-c", input_path);
       nob_cmd_append(&cmd, "-o", output_path);
@@ -234,12 +251,14 @@ defer:
 }
 
 static void usage(const char *program) {
-  printf("%s [--windows | --linux] <-r> [args]", program);
-  printf("\t--windows: Tries to compile for windows with mingw");
-  printf("\t--linux: Tries to compile for linux with gcc");
+  printf("%s [--windows | --linux] <-r> [args]\n", program);
+  printf("\t--release: Tries to compile with optimizations and without debug "
+         "symbols\n");
+  printf("\t--linux: Tries to compile for linux with gcc\n");
+  printf("\t--windows: Tries to compile for windows with mingw\n");
   printf("\t-r: Tries to run the executable immediately after "
          "building, it passes everything that comes after it to the "
-         "executable as arguments");
+         "executable as arguments\n");
 }
 
 static char *get_file_extension(const char *fileName) {
@@ -260,6 +279,7 @@ int main(int argc, char **argv) {
   const char *program = nob_shift_args(&argc, &argv);
   (void)program;
 
+  bool release = false;
 #ifdef _WIN32
   build_platform_t platform = PLATFORM_WINDOWS;
 #else
@@ -269,6 +289,8 @@ int main(int argc, char **argv) {
 
   while (argc > 0) {
     const char *subcmd = nob_shift_args(&argc, &argv);
+    if (strcmp(subcmd, "--release") == 0)
+      release = true;
     if (strcmp(subcmd, "--linux") == 0)
       platform = PLATFORM_LINUX;
     else if (strcmp(subcmd, "--windows") == 0)
@@ -283,8 +305,14 @@ int main(int argc, char **argv) {
   if (!nob_mkdir_if_not_exists("build"))
     return false;
 
-  if (!build_raylib(platform))
+  if (!build_raylib(platform, release))
     return 1;
+
+  const char *release_string;
+  if (release)
+    release_string = "release";
+  else
+    release_string = "debug";
 
   const char *compiler;
   if (platform == PLATFORM_LINUX)
@@ -298,7 +326,15 @@ int main(int argc, char **argv) {
   else if (platform == PLATFORM_WINDOWS)
     platform_string = "windows";
 
-  const char *build_path = nob_temp_sprintf("build/%s", platform_string);
+  const char *platform_build_path =
+      nob_temp_sprintf("build/%s", platform_string);
+
+  if (!nob_mkdir_if_not_exists(platform_build_path))
+    return 1;
+
+  const char *build_path =
+      nob_temp_sprintf("%s/%s", platform_build_path, release_string);
+
   if (!nob_mkdir_if_not_exists(build_path))
     return 1;
 
@@ -307,9 +343,9 @@ int main(int argc, char **argv) {
 
   const char *exe;
   if (platform == PLATFORM_LINUX)
-    exe = "build/wooby";
+    exe = nob_temp_sprintf("%s/wooby", build_path);
   else if (platform == PLATFORM_WINDOWS)
-    exe = "build/wooby.exe";
+    exe = nob_temp_sprintf("%s/wooby.exe", build_path);
 
   Nob_Cmd cmd = {0};
   Nob_File_Paths input_files = {0};
@@ -333,14 +369,17 @@ int main(int argc, char **argv) {
     nob_da_append(&input_files, nob_temp_strdup(input_path));
     char *temp_path = nob_temp_strdup(inputs.items[i]);
     get_file_extension(temp_path)[1] = 'o';
-    const char *output_path =
-        nob_temp_sprintf("build/%s/%s", platform_string, temp_path);
+    const char *output_path = nob_temp_sprintf("%s/%s", build_path, temp_path);
     nob_da_append(&object_files, output_path);
 
     if (nob_needs_rebuild(output_path, &input_path, 1)) {
       cmd.count = 0;
       nob_cmd_append(&cmd, compiler);
-      nob_cmd_append(&cmd, "-Wall", "-Wextra", "-ggdb");
+      nob_cmd_append(&cmd, "-Wall", "-Wextra");
+      if (release)
+        nob_cmd_append(&cmd, "-O2", "-s");
+      else
+        nob_cmd_append(&cmd, "-O0", "-ggdb");
       nob_cmd_append(&cmd, "-Iraylib/src/");
       nob_cmd_append(&cmd, "-c", input_path);
       nob_cmd_append(&cmd, "-o", output_path);
@@ -360,11 +399,15 @@ int main(int argc, char **argv) {
   cmd.count = 0;
   if (nob_needs_rebuild(exe, object_files.items, object_files.count)) {
     nob_cmd_append(&cmd, compiler);
-    nob_cmd_append(&cmd, "-Wall", "-Wextra", "-ggdb");
+    nob_cmd_append(&cmd, "-Wall", "-Wextra");
+    if (release)
+      nob_cmd_append(&cmd, "-O2", "-s");
+    else
+      nob_cmd_append(&cmd, "-O0", "-ggdb");
     nob_cmd_append(&cmd, "-o", exe);
     nob_da_append_many(&cmd, object_files.items, object_files.count);
-    nob_cmd_append(&cmd,
-                   nob_temp_sprintf("-Lbuild/raylib/%s/", platform_string));
+    nob_cmd_append(&cmd, nob_temp_sprintf("-Lbuild/raylib/%s/%s/",
+                                          platform_string, release_string));
     nob_cmd_append(&cmd, "-lraylib", "-lm");
     if (platform == PLATFORM_WINDOWS) {
       nob_cmd_append(&cmd, "-lwinmm", "-lgdi32");
