@@ -12,17 +12,17 @@ static entity_behavior_t player_behaviors[] = {
         .func = player_update,
         .is_active = true,
     },
-    {
-        .type = BEHAVIOR_COLLIDE,
-        .func = player_collision,
-        .is_active = true,
-    },
 };
 
 static entity_behavior_t enemy_behaviors[] = {
     {
         .type = BEHAVIOR_UPDATE,
         .func = enemy_update,
+        .is_active = true,
+    },
+    {
+        .type = BEHAVIOR_COLLIDE,
+        .func = enemy_collide,
         .is_active = true,
     },
 };
@@ -141,18 +141,47 @@ void move_and_collide(entity_t *e) {
   const Rectangle e_rectangle = REC_FROM_2_VEC2(e->position, e->size);
   const entity_behavior_t *collide_behavior =
       get_behavior_if_exists(e->type, BEHAVIOR_COLLIDE);
-  if (collide_behavior && collide_behavior->is_active) {
-    for (size_t i = 0; i < entities.count; ++i) {
-      if (&entities.items[i] == e)
-        continue;
-      const Rectangle other_rectangle =
-          REC_FROM_2_VEC2(entities.items[i].position, entities.items[i].size);
-      if (CheckCollisionRecs(e_rectangle, other_rectangle)) {
+  for (size_t i = 0; i < entities.count; ++i) {
+    if (&entities.items[i] == e)
+      continue;
+    const Rectangle other_rectangle =
+        REC_FROM_2_VEC2(entities.items[i].position, entities.items[i].size);
+    if (CheckCollisionRecs(e_rectangle, other_rectangle)) {
+      const Rectangle collision_rectangle = GetCollisionRec(
+          REC_FROM_2_VEC2(e->position, e->size),
+          REC_FROM_2_VEC2(entities.items[i].position, entities.items[i].size));
+      if (collide_behavior && collide_behavior->is_active) {
         ((entity_collide_behavior_t)collide_behavior->func)(
-            e, &entities.items[i],
-            GetCollisionRec(REC_FROM_2_VEC2(e->position, e->size),
-                            REC_FROM_2_VEC2(entities.items[i].position,
-                                            entities.items[i].size)));
+            e, &entities.items[i], collision_rectangle);
+      }
+
+      enum { LEFT, RIGHT, TOP, BOTTOM } direction = LEFT;
+      float correction = collision_rectangle.width;
+
+      if (collision_rectangle.x <= e->position.x)
+        direction = RIGHT;
+
+      if (collision_rectangle.height < correction) {
+        correction = collision_rectangle.height;
+        if (collision_rectangle.y > e->position.y)
+          direction = TOP;
+        else if (collision_rectangle.y <= e->position.y)
+          direction = BOTTOM;
+      }
+
+      switch (direction) {
+      case LEFT:
+        e->position.x -= correction;
+        break;
+      case RIGHT:
+        e->position.x += correction;
+        break;
+      case TOP:
+        e->position.y -= correction;
+        break;
+      case BOTTOM:
+        e->position.y += correction;
+        break;
       }
     }
   }

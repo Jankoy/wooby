@@ -3,7 +3,8 @@
 
 #include "../entity.h"
 
-void player_collision(entity_t *e, entity_t *o, Rectangle collision_rectangle);
 void player_update(entity_t *e);
+
+void player_death(void);
 
 #endif // PLAYER_H_

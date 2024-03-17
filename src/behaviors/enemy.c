@@ -1,6 +1,16 @@
 #include "enemy.h"
 #include <raymath.h>
 
+#include "player.h"
+
+void enemy_collide(entity_t *e, entity_t *o, Rectangle collision_rectangle) {
+  (void)e;
+  (void)collision_rectangle;
+
+  if (o->type == PLAYER)
+    player_death();
+}
+
 static float speed = 80.0f;
 static float max_velocity = 5.5f;
 static float friction = 0.475f;
