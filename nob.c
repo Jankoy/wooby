@@ -1,8 +1,10 @@
 #define NOB_IMPLEMENTATION
 #include "src/nob.h"
 
-const char *linux_compiler = "cc";
-const char *windows_compiler = "x86_64-w64-mingw32-cc";
+const char *linux_compiler_c = "cc";
+const char *linux_compiler_cxx = "c++";
+const char *windows_compiler_c = "x86_64-w64-mingw32-cc";
+const char *windows_compiler_cxx = "x86_64-w64-mingw32-c++";
 
 const char *linux_linker = "ar";
 const char *windows_linker = "x86_64-w64-mingw32-ar";
@@ -31,9 +33,9 @@ bool build_raylib(build_platform_t platform, bool release) {
 
   const char *compiler;
   if (platform == PLATFORM_LINUX)
-    compiler = linux_compiler;
+    compiler = linux_compiler_c;
   else if (platform == PLATFORM_WINDOWS)
-    compiler = windows_compiler;
+    compiler = windows_compiler_c;
 
   if (!nob_mkdir_if_not_exists("build/raylib"))
     return false;
@@ -277,7 +279,6 @@ int main(int argc, char **argv) {
   NOB_GO_REBUILD_URSELF(argc, argv);
 
   const char *program = nob_shift_args(&argc, &argv);
-  (void)program;
 
   bool release = false;
 #ifdef _WIN32
@@ -291,21 +292,27 @@ int main(int argc, char **argv) {
     const char *subcmd = nob_shift_args(&argc, &argv);
     if (strcmp(subcmd, "--release") == 0)
       release = true;
-    if (strcmp(subcmd, "--linux") == 0)
+    else if (strcmp(subcmd, "--linux") == 0)
       platform = PLATFORM_LINUX;
     else if (strcmp(subcmd, "--windows") == 0)
       platform = PLATFORM_WINDOWS;
     else if (strcmp(subcmd, "-r") == 0) {
       run_flag = true;
       break;
-    } else
+    } else {
       nob_log(NOB_ERROR, "Unknown flag %s", subcmd);
+      usage(program);
+      return 1;
+    }
   }
 
   if (!nob_mkdir_if_not_exists("build"))
     return false;
 
   if (!build_raylib(platform, release))
+    return 1;
+
+  if (!bundle_resources(platform))
     return 1;
 
   const char *release_string;
@@ -316,9 +323,9 @@ int main(int argc, char **argv) {
 
   const char *compiler;
   if (platform == PLATFORM_LINUX)
-    compiler = linux_compiler;
+    compiler = linux_compiler_c;
   else if (platform == PLATFORM_WINDOWS)
-    compiler = windows_compiler;
+    compiler = windows_compiler_c;
 
   const char *platform_string;
   if (platform == PLATFORM_LINUX)
@@ -337,8 +344,8 @@ int main(int argc, char **argv) {
 
   if (!nob_mkdir_if_not_exists(build_path))
     return 1;
-
-  if (!nob_mkdir_if_not_exists(nob_temp_sprintf("%s/behaviors", build_path)))
+  
+  if (!nob_mkdir_if_not_exists(nob_temp_sprintf("%s/entities", build_path)))
     return 1;
 
   const char *exe;
@@ -358,9 +365,6 @@ int main(int argc, char **argv) {
 
   strip_first_dir(&inputs);
 
-  if (!bundle_resources())
-    return 1;
-
   for (size_t i = 0; i < inputs.count; ++i) {
     if (strcmp(get_file_extension(inputs.items[i]), ".c") != 0)
       continue;
@@ -369,6 +373,7 @@ int main(int argc, char **argv) {
     nob_da_append(&input_files, nob_temp_strdup(input_path));
     char *temp_path = nob_temp_strdup(inputs.items[i]);
     get_file_extension(temp_path)[1] = 'o';
+    get_file_extension(temp_path)[2] = '\0';
     const char *output_path = nob_temp_sprintf("%s/%s", build_path, temp_path);
     nob_da_append(&object_files, output_path);
 
@@ -395,7 +400,7 @@ int main(int argc, char **argv) {
   nob_cmd_append(&cmd, "rm", "src/bundle.h");
   if (!nob_cmd_run_sync(cmd))
     return 1;
-
+  
   cmd.count = 0;
   if (nob_needs_rebuild(exe, object_files.items, object_files.count)) {
     nob_cmd_append(&cmd, compiler);

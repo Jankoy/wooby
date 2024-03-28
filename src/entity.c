@@ -3,8 +3,8 @@
 #include "nob.h"
 #include <raymath.h>
 
-#include "behaviors/enemy.h"
-#include "behaviors/player.h"
+#include "entities/enemy.h"
+#include "entities/player.h"
 
 static entity_behavior_t player_behaviors[] = {
     {
@@ -121,12 +121,6 @@ void free_entity(entity_id_t id) {
 entity_t *get_entity(size_t index) { return entities.items + index; }
 entity_data_t get_entity_data(entity_type_t type) { return data_lookup[type]; }
 
-static bool entities_should_update = true;
-
-bool are_entities_updating() { return entities_should_update; }
-void start_updating_entities() { entities_should_update = true; }
-void stop_updating_entities() { entities_should_update = false; }
-
 static const entity_behavior_t *
 get_behavior_if_exists(entity_type_t type, entity_behavior_type_t behavior) {
   for (const entity_behavior_t *b = data_lookup[type].behaviors;
@@ -188,7 +182,6 @@ void move_and_collide(entity_t *e) {
 }
 
 void update_entities() {
-  if (entities_should_update) {
     for (entity_t *e = entities.items;
          (size_t)(e - entities.items) < entities.count; ++e) {
       const entity_behavior_t *update_behavior =
@@ -196,7 +189,6 @@ void update_entities() {
       if (update_behavior)
         if (update_behavior->is_active)
           ((entity_update_behavior_t)update_behavior->func)(e);
-    }
   }
 }
 

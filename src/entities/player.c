@@ -1,6 +1,7 @@
 #include "player.h"
-#include <raymath.h>
 
+#include <raymath.h>
+#include "../game.h"
 #include "../nob.h"
 
 static float speed = 135.0f;
@@ -20,4 +21,4 @@ void player_update(entity_t *e) {
   e->velocity = Vector2Scale(e->velocity, 1.0f - friction);
 }
 
-void player_death(void) { stop_updating_entities(); }
+void player_death(void) { game_over(); }

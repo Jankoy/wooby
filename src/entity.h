@@ -50,10 +50,6 @@ void free_entity(entity_id_t id);
 entity_t *get_entity(size_t index);
 entity_data_t get_entity_data(entity_type_t type);
 
-bool are_entities_updating();
-void start_updating_entities();
-void stop_updating_entities();
-
 void move_and_collide(entity_t *e);
 
 void update_entities();
