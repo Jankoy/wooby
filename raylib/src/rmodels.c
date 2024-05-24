@@ -1580,7 +1580,7 @@ void DrawMeshInstanced(Mesh mesh, Material material, const Matrix *transforms, i
     if (material.shader.locs[SHADER_LOC_MATRIX_PROJECTION] != -1) rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_PROJECTION], matProjection);
 
     // Create instances buffer
-    instanceTransforms = (float16 *)RL_MALLOC(instances*sizeof(float16));
+    instanceTransforms = RL_MALLOC(instances*sizeof(float16));
 
     // Fill buffer with instances transformations as float16 arrays
     for (int i = 0; i < instances; i++) instanceTransforms[i] = MatrixToFloatV(transforms[i]);
@@ -2237,7 +2237,7 @@ Mesh GenMeshPoly(int sides, float radius)
     int vertexCount = sides*3;
 
     // Vertices definition
-    Vector3 *vertices = (Vector3 *)RL_MALLOC(vertexCount*sizeof(Vector3));
+    Vector3 *vertices = RL_MALLOC(vertexCount*sizeof(Vector3));
 
     float d = 0.0f, dStep = 360.0f/sides;
     for (int v = 0; v < vertexCount - 2; v += 3)
@@ -2249,18 +2249,18 @@ Mesh GenMeshPoly(int sides, float radius)
     }
 
     // Normals definition
-    Vector3 *normals = (Vector3 *)RL_MALLOC(vertexCount*sizeof(Vector3));
+    Vector3 *normals = RL_MALLOC(vertexCount*sizeof(Vector3));
     for (int n = 0; n < vertexCount; n++) normals[n] = (Vector3){ 0.0f, 1.0f, 0.0f };   // Vector3.up;
 
     // TexCoords definition
-    Vector2 *texcoords = (Vector2 *)RL_MALLOC(vertexCount*sizeof(Vector2));
+    Vector2 *texcoords = RL_MALLOC(vertexCount*sizeof(Vector2));
     for (int n = 0; n < vertexCount; n++) texcoords[n] = (Vector2){ 0.0f, 0.0f };
 
     mesh.vertexCount = vertexCount;
     mesh.triangleCount = sides;
-    mesh.vertices = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
-    mesh.texcoords = (float *)RL_MALLOC(mesh.vertexCount*2*sizeof(float));
-    mesh.normals = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
+    mesh.vertices = RL_MALLOC(mesh.vertexCount*3*sizeof(float));
+    mesh.texcoords = RL_MALLOC(mesh.vertexCount*2*sizeof(float));
+    mesh.normals = RL_MALLOC(mesh.vertexCount*3*sizeof(float));
 
     // Mesh vertices position array
     for (int i = 0; i < mesh.vertexCount; i++)
@@ -2309,7 +2309,7 @@ Mesh GenMeshPlane(float width, float length, int resX, int resZ)
     // Vertices definition
     int vertexCount = resX*resZ; // vertices get reused for the faces
 
-    Vector3 *vertices = (Vector3 *)RL_MALLOC(vertexCount*sizeof(Vector3));
+    Vector3 *vertices = RL_MALLOC(vertexCount*sizeof(Vector3));
     for (int z = 0; z < resZ; z++)
     {
         // [-length/2, length/2]
@@ -2323,11 +2323,11 @@ Mesh GenMeshPlane(float width, float length, int resX, int resZ)
     }
 
     // Normals definition
-    Vector3 *normals = (Vector3 *)RL_MALLOC(vertexCount*sizeof(Vector3));
+    Vector3 *normals = RL_MALLOC(vertexCount*sizeof(Vector3));
     for (int n = 0; n < vertexCount; n++) normals[n] = (Vector3){ 0.0f, 1.0f, 0.0f };   // Vector3.up;
 
     // TexCoords definition
-    Vector2 *texcoords = (Vector2 *)RL_MALLOC(vertexCount*sizeof(Vector2));
+    Vector2 *texcoords = RL_MALLOC(vertexCount*sizeof(Vector2));
     for (int v = 0; v < resZ; v++)
     {
         for (int u = 0; u < resX; u++)
@@ -2338,7 +2338,7 @@ Mesh GenMeshPlane(float width, float length, int resX, int resZ)
 
     // Triangles definition (indices)
     int numFaces = (resX - 1)*(resZ - 1);
-    int *triangles = (int *)RL_MALLOC(numFaces*6*sizeof(int));
+    int *triangles = RL_MALLOC(numFaces*6*sizeof(int));
     int t = 0;
     for (int face = 0; face < numFaces; face++)
     {
@@ -2356,10 +2356,10 @@ Mesh GenMeshPlane(float width, float length, int resX, int resZ)
 
     mesh.vertexCount = vertexCount;
     mesh.triangleCount = numFaces*2;
-    mesh.vertices = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
-    mesh.texcoords = (float *)RL_MALLOC(mesh.vertexCount*2*sizeof(float));
-    mesh.normals = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
-    mesh.indices = (unsigned short *)RL_MALLOC(mesh.triangleCount*3*sizeof(unsigned short));
+    mesh.vertices = RL_MALLOC(mesh.vertexCount*3*sizeof(float));
+    mesh.texcoords = RL_MALLOC(mesh.vertexCount*2*sizeof(float));
+    mesh.normals = RL_MALLOC(mesh.vertexCount*3*sizeof(float));
+    mesh.indices = RL_MALLOC(mesh.triangleCount*3*sizeof(unsigned short));
 
     // Mesh vertices position array
     for (int i = 0; i < mesh.vertexCount; i++)
@@ -5657,16 +5657,16 @@ static Model LoadVOX(const char *fileName)
         pmesh->vertexCount = (int)fmin(verticesMax, verticesRemain);
 
         size = pmesh->vertexCount*sizeof(float)*3;
-        pmesh->vertices = (float *)RL_MALLOC(size);
+        pmesh->vertices = RL_MALLOC(size);
         memcpy(pmesh->vertices, pvertices, size);
 
         // Copy normals
-        pmesh->normals = (float *)RL_MALLOC(size);
+        pmesh->normals = RL_MALLOC(size);
         memcpy(pmesh->normals, pnormals, size);
 
         // Copy indices
         size = voxarray.indices.used*sizeof(unsigned short);
-        pmesh->indices = (float *)RL_MALLOC(size);
+        pmesh->indices = RL_MALLOC(size);
         memcpy(pmesh->indices, pindices, size);
 
         pmesh->triangleCount = (pmesh->vertexCount/4)*2;

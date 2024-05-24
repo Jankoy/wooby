@@ -175,18 +175,23 @@ typedef struct {
   size_t capacity;
 } Resources;
 
-bool bundle_resources() {
+bool bundle_resources(const char *exe, bool *resources_rebuilt) {
   bool result = true;
 
   Nob_File_Paths resource_files = {0};
-
-  if (!read_dir_recursively("resources", &resource_files))
-    nob_return_defer(false);
-
   Resources resources = {0};
   Nob_String_Builder bundle = {0};
   Nob_String_Builder content = {0};
   FILE *out = NULL;
+
+  if (!read_dir_recursively("resources", &resource_files))
+    nob_return_defer(false);
+
+  if (!nob_needs_rebuild(exe, resource_files.items, resource_files.count)) {
+    *resources_rebuilt = false;
+    nob_return_defer(true);
+  }
+  *resources_rebuilt = true;
 
   for (size_t i = 0; i < resource_files.count; ++i) {
     content.count = 0;
@@ -248,6 +253,7 @@ defer:
   free(content.items);
   free(bundle.items);
   free(resources.items);
+  free(resource_files.items);
 
   return result;
 }
@@ -309,12 +315,6 @@ int main(int argc, char **argv) {
   if (!nob_mkdir_if_not_exists("build"))
     return false;
 
-  if (!build_raylib(platform, release))
-    return 1;
-
-  if (!bundle_resources(platform))
-    return 1;
-
   const char *release_string;
   if (release)
     release_string = "release";
@@ -344,7 +344,7 @@ int main(int argc, char **argv) {
 
   if (!nob_mkdir_if_not_exists(build_path))
     return 1;
-  
+
   if (!nob_mkdir_if_not_exists(nob_temp_sprintf("%s/entities", build_path)))
     return 1;
 
@@ -353,6 +353,13 @@ int main(int argc, char **argv) {
     exe = nob_temp_sprintf("%s/wooby", build_path);
   else if (platform == PLATFORM_WINDOWS)
     exe = nob_temp_sprintf("%s/wooby.exe", build_path);
+
+  if (!build_raylib(platform, release))
+    return 1;
+
+  bool resources_rebuilt;
+  if (!bundle_resources(exe, &resources_rebuilt))
+    return 1;
 
   Nob_Cmd cmd = {0};
   Nob_File_Paths input_files = {0};
@@ -377,7 +384,7 @@ int main(int argc, char **argv) {
     const char *output_path = nob_temp_sprintf("%s/%s", build_path, temp_path);
     nob_da_append(&object_files, output_path);
 
-    if (nob_needs_rebuild(output_path, &input_path, 1)) {
+    if (nob_needs_rebuild(output_path, &input_path, 1) || resources_rebuilt) {
       cmd.count = 0;
       nob_cmd_append(&cmd, compiler);
       nob_cmd_append(&cmd, "-Wall", "-Wextra");
@@ -396,11 +403,13 @@ int main(int argc, char **argv) {
   if (!nob_procs_wait(procs))
     return 1;
 
-  cmd.count = 0;
-  nob_cmd_append(&cmd, "rm", "src/bundle.h");
-  if (!nob_cmd_run_sync(cmd))
-    return 1;
-  
+  if (nob_file_exists("src/bundle.h")) {
+    cmd.count = 0;
+    nob_cmd_append(&cmd, "rm", "src/bundle.h");
+    if (!nob_cmd_run_sync(cmd))
+      return 1;
+  }
+
   cmd.count = 0;
   if (nob_needs_rebuild(exe, object_files.items, object_files.count)) {
     nob_cmd_append(&cmd, compiler);

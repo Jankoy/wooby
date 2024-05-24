@@ -10,36 +10,61 @@
 #define REC_FROM_2_VEC2(v1, v2) ((Rectangle){(v1).x, (v1).y, (v2).x, (v2).y})
 
 typedef size_t entity_id_t;
-typedef enum { PLAYER, ENEMY } entity_type_t;
+typedef enum { E_PLAYER, E_ENEMY } entity_type_t;
 
 typedef struct {
   entity_id_t id;
   entity_type_t type;
-  Vector2 position;
-  Vector2 size;
-  Vector2 velocity;
-  float rotation;
-  Color tint;
+  Vector2 position, velocity;
+  void *data;
 } entity_t;
 
-typedef enum { BEHAVIOR_UPDATE, BEHAVIOR_COLLIDE } entity_behavior_type_t;
-
-typedef void (*entity_update_behavior_t)(entity_t *);
-typedef void (*entity_collide_behavior_t)(entity_t *, entity_t *, Rectangle);
-
 typedef struct {
-  entity_behavior_type_t type;
-  void *func;
-  bool is_active;
-} entity_behavior_t;
+  void (*entity_init)(entity_t *);
+  void (*entity_update)(entity_t *);
+  void (*entity_collide)(entity_t *, entity_t *, Rectangle);
+  void (*entity_draw)(entity_t *);
+  void (*entity_free)(entity_t *);
+} entity_vtable_t;
+
+typedef enum { RES_NULL, RES_TEXTURE } resource_type_t;
 
 typedef struct {
   const char *texture_path;
   const Rectangle texture_rectangle;
+  const TextureFilter texture_filter;
+} texture_resource_info_t;
+
+typedef struct {
+  resource_type_t type;
+  union {
+    texture_resource_info_t texture_info;
+  };
+} resource_info_t;
+
+#define E_RES_CAP 8
+
+typedef struct {
+  const entity_vtable_t vtable;
   const Vector2 size;
-  const entity_behavior_t *behaviors;
-  const size_t behavior_count;
+  const resource_info_t resources[E_RES_CAP];
 } entity_data_t;
+
+typedef struct {
+  Texture texture;
+} texture_resource_data_t;
+
+typedef struct {
+  resource_type_t type;
+  union {
+    texture_resource_data_t texture_data;
+  };
+} resource_data_t;
+
+typedef struct {
+  bool resources_loaded;
+  resource_data_t resources[E_RES_CAP];
+} entity_cache_t;
 
 size_t find_entity_from_id(entity_id_t id);
 size_t find_entity_from_type(entity_type_t type);
@@ -47,8 +72,9 @@ size_t find_entity_from_type(entity_type_t type);
 entity_id_t spawn_entity(entity_type_t type, Vector2 position);
 void free_entity(entity_id_t id);
 
-entity_t *get_entity(size_t index);
-entity_data_t get_entity_data(entity_type_t type);
+const entity_t *get_entity(size_t index);
+const entity_data_t *get_entity_data(entity_type_t type);
+const entity_cache_t *get_entity_cache(entity_type_t type);
 
 void move_and_collide(entity_t *e);
 

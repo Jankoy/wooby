@@ -1,12 +1,14 @@
 #include "player.h"
 
-#include <raymath.h>
 #include "../game.h"
 #include "../nob.h"
+#include <raymath.h>
 
-static float speed = 135.0f;
+static float speed = 115.0f;
 static float max_velocity = 6.5f;
-static float friction = 0.475f;
+static float friction = 0.3f;
+
+void player_init(entity_t *e) { (void)e; }
 
 void player_update(entity_t *e) {
   const Vector2 delta =
@@ -14,11 +16,27 @@ void player_update(entity_t *e) {
                                  IsKeyDown(KEY_DOWN) - IsKeyDown(KEY_UP)});
   e->velocity =
       Vector2Add(e->velocity, Vector2Scale(delta, speed * GetFrameTime()));
+  e->velocity = Vector2Scale(e->velocity, 1.0f - friction);
   e->velocity =
       Vector2Clamp(e->velocity, (Vector2){-max_velocity, -max_velocity},
                    (Vector2){max_velocity, max_velocity});
   move_and_collide(e);
-  e->velocity = Vector2Scale(e->velocity, 1.0f - friction);
 }
 
-void player_death(void) { game_over(); }
+void player_collide(entity_t *e, entity_t *other, Rectangle rectangle) {
+  (void)e;
+  (void)rectangle;
+  if (other->type == E_ENEMY)
+    game_over();
+}
+
+void player_draw(entity_t *e) {
+  const entity_data_t *e_data = get_entity_data(e->type);
+  const entity_cache_t *e_cache = get_entity_cache(e->type);
+  DrawTexturePro(e_cache->resources[0].texture_data.texture,
+                 e_data->resources[0].texture_info.texture_rectangle,
+                 REC_FROM_2_VEC2(e->position, e_data->size), (Vector2){0}, 0.0f,
+                 WHITE);
+}
+
+void player_free(entity_t *e) { (void)e; }

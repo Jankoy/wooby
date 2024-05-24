@@ -6,54 +6,62 @@
 #include "entities/enemy.h"
 #include "entities/player.h"
 
-static entity_behavior_t player_behaviors[] = {
-    {
-        .type = BEHAVIOR_UPDATE,
-        .func = player_update,
-        .is_active = true,
-    },
-};
-
-static entity_behavior_t enemy_behaviors[] = {
-    {
-        .type = BEHAVIOR_UPDATE,
-        .func = enemy_update,
-        .is_active = true,
-    },
-    {
-        .type = BEHAVIOR_COLLIDE,
-        .func = enemy_collide,
-        .is_active = true,
-    },
-};
-
-static entity_data_t data_lookup[] = {
-    [PLAYER] =
+static const entity_data_t data_lookup[] = {
+    [E_PLAYER] =
         {
-            .texture_path = "resources/player.png",
-            .texture_rectangle = {0.0f, 0.0f, 256.0f, 256.0f},
-            .size = {64.0f, 64.0f},
-            .behaviors = player_behaviors,
-            .behavior_count = NOB_ARRAY_LEN(player_behaviors),
+            .vtable =
+                {
+                    .entity_init = player_init,
+                    .entity_update = player_update,
+                    .entity_collide = player_collide,
+                    .entity_draw = player_draw,
+                    .entity_free = player_free,
+                },
+            .size = {56.0f, 56.0f},
+            .resources =
+                {
+                    {
+                        .type = RES_TEXTURE,
+                        .texture_info =
+                            {
+                                .texture_path = "resources/player.png",
+                                .texture_rectangle = {0.0f, 0.0f, 256.0f,
+                                                      256.0f},
+                                .texture_filter = TEXTURE_FILTER_ANISOTROPIC_8X,
+                            },
+                    },
+                },
         },
-    [ENEMY] =
+    [E_ENEMY] =
         {
-            .texture_path = "resources/enemy.png",
-            .texture_rectangle = {0.0f, 0.0f, 256.0f, 256.0f},
-            .size = {64.0f, 64.0f},
-            .behaviors = enemy_behaviors,
-            .behavior_count = NOB_ARRAY_LEN(enemy_behaviors),
+            .resources =
+                {
+                    {
+                        .type = RES_TEXTURE,
+                        .texture_info =
+                            {
+                                .texture_path = "resources/enemy.png",
+                                .texture_rectangle = {0.0f, 0.0f, 256.0f,
+                                                      256.0f},
+                                .texture_filter = TEXTURE_FILTER_ANISOTROPIC_8X,
+                            },
+                    },
+                },
+            .size = {56.0f, 56.0f},
+            .vtable =
+                {
+                    .entity_init = enemy_init,
+                    .entity_update = enemy_update,
+                    .entity_collide = enemy_collide,
+                    .entity_draw = enemy_draw,
+                    .entity_free = enemy_free,
+                },
         },
 };
-
-typedef struct {
-  bool texture_loaded;
-  Texture texture;
-} entity_cache_t;
 
 static entity_cache_t resource_cache[] = {
-    [PLAYER] = {0},
-    [ENEMY] = {0},
+    [E_PLAYER] = {0},
+    [E_ENEMY] = {0},
 };
 
 static struct {
@@ -79,30 +87,44 @@ size_t find_entity_from_type(entity_type_t type) {
 }
 
 entity_id_t spawn_entity(entity_type_t type, Vector2 position) {
-  entity_data_t e_data = data_lookup[type];
+  const entity_data_t e_data = data_lookup[type];
 
-  if (!resource_cache[type].texture_loaded) {
-    size_t texture_size;
-    void *texture_data = load_resource_data(e_data.texture_path, &texture_size);
-    if (!texture_data)
-      exit(1);
-    Image image = LoadImageFromMemory(GetFileExtension(e_data.texture_path),
-                                      texture_data, (int)texture_size);
-    Texture texture = LoadTextureFromImage(image);
-    free_resource_data(texture_data);
-    resource_cache[type].texture_loaded = true;
-    resource_cache[type].texture = texture;
+  if (!resource_cache[type].resources_loaded) {
+    for (size_t i = 0; i < E_RES_CAP && e_data.resources[i].type != RES_NULL;
+         ++i) {
+      switch (e_data.resources[i].type) {
+      case RES_TEXTURE: {
+        const texture_resource_info_t texture_info =
+            e_data.resources[i].texture_info;
+        size_t texture_size;
+        void *texture_data =
+            load_resource_data(texture_info.texture_path, &texture_size);
+        if (!texture_data)
+          exit(1);
+        Image image =
+            LoadImageFromMemory(GetFileExtension(texture_info.texture_path),
+                                texture_data, (int)texture_size);
+        Texture texture = LoadTextureFromImage(image);
+        free_resource_data(texture_data);
+        resource_cache[type].resources[i].type = RES_TEXTURE;
+        resource_cache[type].resources[i].texture_data.texture = texture;
+      } break;
+      default:
+        break;
+      }
+    }
+    resource_cache[type].resources_loaded = true;
   }
 
   entity_t e = {
       .id = entities.count + 1,
       .type = type,
       .position = position,
-      .size = {e_data.size.x, e_data.size.y},
       .velocity = {0},
-      .rotation = 0.0f,
-      .tint = WHITE,
+      .data = NULL,
   };
+
+  e_data.vtable.entity_init(&e);
 
   nob_da_append(&entities, e);
 
@@ -113,103 +135,104 @@ void free_entity(entity_id_t id) {
   size_t index = find_entity_from_id(id);
   if (index >= entities.count)
     return;
+  entity_t *e = &entities.items[index];
+  data_lookup[e->type].vtable.entity_free(e);
   for (size_t i = index; i < entities.count - 1; ++i)
     entities.items[i] = entities.items[i + 1];
-  entities.count -= 1;
+  --entities.count;
 }
 
-entity_t *get_entity(size_t index) { return entities.items + index; }
-entity_data_t get_entity_data(entity_type_t type) { return data_lookup[type]; }
-
-static const entity_behavior_t *
-get_behavior_if_exists(entity_type_t type, entity_behavior_type_t behavior) {
-  for (const entity_behavior_t *b = data_lookup[type].behaviors;
-       b < data_lookup[type].behaviors + data_lookup[type].behavior_count; ++b)
-    if (b->type == behavior)
-      return b;
-  return NULL;
+const entity_t *get_entity(size_t index) { return entities.items + index; }
+const entity_data_t *get_entity_data(entity_type_t type) {
+  return &data_lookup[type];
 }
+const entity_cache_t *get_entity_cache(entity_type_t type) {
+  return &resource_cache[type];
+}
+
+typedef struct {
+  entity_t *e;
+  Vector2 dst;
+} entity_move_t;
+
+static struct {
+  entity_move_t *items;
+  size_t count;
+  size_t capacity;
+} entity_moves = {0};
 
 void move_and_collide(entity_t *e) {
-  e->position = Vector2Add(e->position, e->velocity);
-  const Rectangle e_rectangle = REC_FROM_2_VEC2(e->position, e->size);
-  const entity_behavior_t *collide_behavior =
-      get_behavior_if_exists(e->type, BEHAVIOR_COLLIDE);
-  for (size_t i = 0; i < entities.count; ++i) {
-    if (&entities.items[i] == e)
-      continue;
-    const Rectangle other_rectangle =
-        REC_FROM_2_VEC2(entities.items[i].position, entities.items[i].size);
-    if (CheckCollisionRecs(e_rectangle, other_rectangle)) {
-      const Rectangle collision_rectangle = GetCollisionRec(
-          REC_FROM_2_VEC2(e->position, e->size),
-          REC_FROM_2_VEC2(entities.items[i].position, entities.items[i].size));
-      if (collide_behavior && collide_behavior->is_active) {
-        ((entity_collide_behavior_t)collide_behavior->func)(
-            e, &entities.items[i], collision_rectangle);
-      }
+  nob_da_append(
+      &entity_moves,
+      ((entity_move_t){.e = e, .dst = Vector2Add(e->position, e->velocity)}));
+}
 
-      enum { LEFT, RIGHT, TOP, BOTTOM } direction = LEFT;
-      float correction = collision_rectangle.width;
+static void resolve_moves() {
+  for (entity_move_t *move = entity_moves.items + entity_moves.count - 1;
+       move >= entity_moves.items; --move) {
+    move->e->position = move->dst;
+    const entity_data_t e_data = data_lookup[move->e->type];
+    const Rectangle e_rectangle =
+        REC_FROM_2_VEC2(move->e->position, e_data.size);
+    for (size_t i = 0; i < entities.count; ++i) {
+      if (&entities.items[i] == move->e)
+        continue;
+      const entity_data_t other_data = data_lookup[entities.items[i].type];
+      const Rectangle other_rectangle =
+          REC_FROM_2_VEC2(entities.items[i].position, other_data.size);
+      if (CheckCollisionRecs(e_rectangle, other_rectangle)) {
+        const Rectangle collision_rectangle =
+            GetCollisionRec(e_rectangle, other_rectangle);
 
-      if (collision_rectangle.x <= e->position.x)
-        direction = RIGHT;
+        e_data.vtable.entity_collide(move->e, &entities.items[i],
+                                     collision_rectangle);
+        other_data.vtable.entity_collide(&entities.items[i], move->e,
+                                         collision_rectangle);
 
-      if (collision_rectangle.height < correction) {
-        correction = collision_rectangle.height;
-        if (collision_rectangle.y > e->position.y)
-          direction = TOP;
-        else if (collision_rectangle.y <= e->position.y)
-          direction = BOTTOM;
-      }
+        enum { LEFT, RIGHT, TOP, BOTTOM } direction = LEFT;
+        float correction = collision_rectangle.width;
 
-      switch (direction) {
-      case LEFT:
-        e->position.x -= correction;
-        break;
-      case RIGHT:
-        e->position.x += correction;
-        break;
-      case TOP:
-        e->position.y -= correction;
-        break;
-      case BOTTOM:
-        e->position.y += correction;
-        break;
+        if (collision_rectangle.x <= move->e->position.x)
+          direction = RIGHT;
+
+        if (collision_rectangle.height < correction) {
+          correction = collision_rectangle.height;
+          if (collision_rectangle.y > move->e->position.y)
+            direction = TOP;
+          else if (collision_rectangle.y <= move->e->position.y)
+            direction = BOTTOM;
+        }
+
+        switch (direction) {
+        case LEFT:
+          move->e->position.x -= correction;
+          break;
+        case RIGHT:
+          move->e->position.x += correction;
+          break;
+        case TOP:
+          move->e->position.y -= correction;
+          break;
+        case BOTTOM:
+          move->e->position.y += correction;
+          break;
+        }
       }
     }
+    entity_moves.count = 0;
   }
 }
 
 void update_entities() {
-    for (entity_t *e = entities.items;
-         (size_t)(e - entities.items) < entities.count; ++e) {
-      const entity_behavior_t *update_behavior =
-          get_behavior_if_exists(e->type, BEHAVIOR_UPDATE);
-      if (update_behavior)
-        if (update_behavior->is_active)
-          ((entity_update_behavior_t)update_behavior->func)(e);
-  }
+  for (entity_t *e = entities.items;
+       (size_t)(e - entities.items) < entities.count; ++e)
+    data_lookup[e->type].vtable.entity_update(e);
+  resolve_moves();
 }
 
 void draw_entities() {
-  entity_t *p = NULL;
   for (entity_t *e = entities.items; e < entities.items + entities.count; ++e) {
-    if (e->type == PLAYER) {
-      p = e;
-      continue;
-    }
     entity_data_t e_data = data_lookup[e->type];
-    DrawTexturePro(resource_cache[e->type].texture, e_data.texture_rectangle,
-                   REC_FROM_2_VEC2(e->position, e->size), (Vector2){0},
-                   e->rotation, e->tint);
+    e_data.vtable.entity_draw(e);
   }
-  if (!p) {
-    nob_log(NOB_ERROR, "Player could not be found");
-    exit(1);
-  }
-  entity_data_t p_data = data_lookup[p->type];
-  DrawTexturePro(resource_cache[p->type].texture, p_data.texture_rectangle,
-                 REC_FROM_2_VEC2(p->position, p->size), (Vector2){0},
-                 p->rotation, p->tint);
 }
