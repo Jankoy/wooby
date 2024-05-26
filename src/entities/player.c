@@ -12,8 +12,10 @@ void player_init(entity_t *e) { (void)e; }
 
 void player_update(entity_t *e) {
   const Vector2 delta =
-      Vector2Normalize((Vector2){IsKeyDown(KEY_RIGHT) - IsKeyDown(KEY_LEFT),
-                                 IsKeyDown(KEY_DOWN) - IsKeyDown(KEY_UP)});
+      Vector2Normalize((Vector2){(IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) -
+                                     (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)),
+                                 (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) -
+                                     (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W))});
   e->velocity =
       Vector2Add(e->velocity, Vector2Scale(delta, speed * GetFrameTime()));
   e->velocity = Vector2Scale(e->velocity, 1.0f - friction);

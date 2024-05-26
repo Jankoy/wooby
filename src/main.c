@@ -4,7 +4,7 @@
 #include <raylib.h>
 
 int main(void) {
-  SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT);
+  SetConfigFlags(FLAG_MSAA_4X_HINT);
   InitWindow(800, 600, "Wooby");
   SetTargetFPS(60);
 
@@ -18,6 +18,7 @@ int main(void) {
     EndDrawing();
   }
 
+  game_free();
   CloseWindow();
   return 0;
 }

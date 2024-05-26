@@ -42,12 +42,12 @@ typedef struct {
   };
 } resource_info_t;
 
-#define E_RES_CAP 8
+#define RES_CAP 8
 
 typedef struct {
   const entity_vtable_t vtable;
   const Vector2 size;
-  const resource_info_t resources[E_RES_CAP];
+  const resource_info_t resources[RES_CAP];
 } entity_data_t;
 
 typedef struct {
@@ -63,7 +63,7 @@ typedef struct {
 
 typedef struct {
   bool resources_loaded;
-  resource_data_t resources[E_RES_CAP];
+  resource_data_t resources[RES_CAP];
 } entity_cache_t;
 
 size_t find_entity_from_id(entity_id_t id);

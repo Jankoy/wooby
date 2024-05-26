@@ -90,7 +90,7 @@ entity_id_t spawn_entity(entity_type_t type, Vector2 position) {
   const entity_data_t e_data = data_lookup[type];
 
   if (!resource_cache[type].resources_loaded) {
-    for (size_t i = 0; i < E_RES_CAP && e_data.resources[i].type != RES_NULL;
+    for (size_t i = 0; i < RES_CAP && e_data.resources[i].type != RES_NULL;
          ++i) {
       switch (e_data.resources[i].type) {
       case RES_TEXTURE: {

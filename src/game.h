@@ -9,4 +9,6 @@ void game_restart();
 void game_update();
 void game_draw();
 
+void game_free();
+
 #endif
