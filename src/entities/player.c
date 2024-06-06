@@ -27,8 +27,8 @@ void player_update(entity_t *e) {
 
 void player_collide(entity_t *e, entity_t *other, Rectangle rectangle) {
   (void)e;
-  (void)rectangle;
-  if (other->type == E_ENEMY)
+  if (other->type == E_ENEMY &&
+      (rectangle.width > 8.0f || rectangle.height > 8.0f))
     game_over();
 }
 

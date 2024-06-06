@@ -20,11 +20,11 @@ typedef struct {
 } entity_t;
 
 typedef struct {
-  void (*entity_init)(entity_t *);
-  void (*entity_update)(entity_t *);
-  void (*entity_collide)(entity_t *, entity_t *, Rectangle);
-  void (*entity_draw)(entity_t *);
-  void (*entity_free)(entity_t *);
+  void (*init)(entity_t *);
+  void (*update)(entity_t *);
+  void (*collide)(entity_t *, entity_t *, Rectangle);
+  void (*draw)(entity_t *);
+  void (*free)(entity_t *);
 } entity_vtable_t;
 
 typedef enum { RES_NULL, RES_TEXTURE } resource_type_t;
@@ -33,12 +33,12 @@ typedef struct {
   const char *texture_path;
   const Rectangle texture_rectangle;
   const TextureFilter texture_filter;
-} texture_resource_info_t;
+} texture_info_t;
 
 typedef struct {
   resource_type_t type;
   union {
-    texture_resource_info_t texture_info;
+    texture_info_t texture_info;
   };
 } resource_info_t;
 

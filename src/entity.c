@@ -11,11 +11,11 @@ static const entity_data_t data_lookup[] = {
         {
             .vtable =
                 {
-                    .entity_init = player_init,
-                    .entity_update = player_update,
-                    .entity_collide = player_collide,
-                    .entity_draw = player_draw,
-                    .entity_free = player_free,
+                    .init = player_init,
+                    .update = player_update,
+                    .collide = player_collide,
+                    .draw = player_draw,
+                    .free = player_free,
                 },
             .size = {56.0f, 56.0f},
             .resources =
@@ -50,11 +50,11 @@ static const entity_data_t data_lookup[] = {
             .size = {56.0f, 56.0f},
             .vtable =
                 {
-                    .entity_init = enemy_init,
-                    .entity_update = enemy_update,
-                    .entity_collide = enemy_collide,
-                    .entity_draw = enemy_draw,
-                    .entity_free = enemy_free,
+                    .init = enemy_init,
+                    .update = enemy_update,
+                    .collide = enemy_collide,
+                    .draw = enemy_draw,
+                    .free = enemy_free,
                 },
         },
 };
@@ -94,8 +94,7 @@ entity_id_t spawn_entity(entity_type_t type, Vector2 position) {
          ++i) {
       switch (e_data.resources[i].type) {
       case RES_TEXTURE: {
-        const texture_resource_info_t texture_info =
-            e_data.resources[i].texture_info;
+        const texture_info_t texture_info = e_data.resources[i].texture_info;
         size_t texture_size;
         void *texture_data =
             load_resource_data(texture_info.texture_path, &texture_size);
@@ -124,7 +123,7 @@ entity_id_t spawn_entity(entity_type_t type, Vector2 position) {
       .data = NULL,
   };
 
-  e_data.vtable.entity_init(&e);
+  e_data.vtable.init(&e);
 
   nob_da_append(&entities, e);
 
@@ -136,7 +135,7 @@ void free_entity(entity_id_t id) {
   if (index >= entities.count)
     return;
   entity_t *e = &entities.items[index];
-  data_lookup[e->type].vtable.entity_free(e);
+  data_lookup[e->type].vtable.free(e);
   for (size_t i = index; i < entities.count - 1; ++i)
     entities.items[i] = entities.items[i + 1];
   --entities.count;
@@ -184,10 +183,9 @@ static void resolve_moves() {
         const Rectangle collision_rectangle =
             GetCollisionRec(e_rectangle, other_rectangle);
 
-        e_data.vtable.entity_collide(move->e, &entities.items[i],
-                                     collision_rectangle);
-        other_data.vtable.entity_collide(&entities.items[i], move->e,
-                                         collision_rectangle);
+        e_data.vtable.collide(move->e, &entities.items[i], collision_rectangle);
+        other_data.vtable.collide(&entities.items[i], move->e,
+                                  collision_rectangle);
 
         enum { LEFT, RIGHT, TOP, BOTTOM } direction = LEFT;
         float correction = collision_rectangle.width;
@@ -226,13 +224,13 @@ static void resolve_moves() {
 void update_entities() {
   for (entity_t *e = entities.items;
        (size_t)(e - entities.items) < entities.count; ++e)
-    data_lookup[e->type].vtable.entity_update(e);
+    data_lookup[e->type].vtable.update(e);
   resolve_moves();
 }
 
 void draw_entities() {
   for (entity_t *e = entities.items; e < entities.items + entities.count; ++e) {
     entity_data_t e_data = data_lookup[e->type];
-    e_data.vtable.entity_draw(e);
+    e_data.vtable.draw(e);
   }
 }

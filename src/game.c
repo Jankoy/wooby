@@ -54,30 +54,35 @@ void game_restart() {
 
 static Rectangle debug_menu_bounds = {40.0f, 40.0f, 260.0f, 180.0f};
 static bool debug_menu_was_dragged = false;
+static bool mouse_down_last_frame = false;
 static Vector2 debug_menu_drag_offset = {0};
 
 static void debug_menu_update() {
   const Vector2 mouse_position = GetMousePosition();
-  const bool is_dragging =
+  bool is_dragging =
       (debug_menu_was_dragged && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) ||
-      (IsMouseButtonDown(MOUSE_LEFT_BUTTON) &&
+      (!mouse_down_last_frame && IsMouseButtonDown(MOUSE_LEFT_BUTTON) &&
        CheckCollisionPointRec(
            mouse_position, (Rectangle){debug_menu_bounds.x, debug_menu_bounds.y,
                                        debug_menu_bounds.width, 24.0f}));
-  if (debug_menu_was_dragged) {
+  if (is_dragging) {
+    if (!debug_menu_was_dragged) {
+      debug_menu_drag_offset = Vector2Subtract(
+          mouse_position, (Vector2){debug_menu_bounds.x, debug_menu_bounds.y});
+    }
     const Vector2 new_pos = Vector2Clamp(
         Vector2Subtract(mouse_position, debug_menu_drag_offset), (Vector2){0},
         (Vector2){GetScreenWidth() - debug_menu_bounds.width,
                   GetScreenHeight() - debug_menu_bounds.height});
     debug_menu_bounds.x = new_pos.x;
     debug_menu_bounds.y = new_pos.y;
+  } else {
+    is_dragging = false;
+    debug_menu_drag_offset = (Vector2){0};
   }
 
-  if (is_dragging && !debug_menu_was_dragged)
-    debug_menu_drag_offset = Vector2Subtract(
-        mouse_position, (Vector2){debug_menu_bounds.x, debug_menu_bounds.y});
-
   debug_menu_was_dragged = is_dragging;
+  mouse_down_last_frame = IsMouseButtonDown(MOUSE_LEFT_BUTTON);
 }
 
 void game_update() {
